@@ -1,45 +1,18 @@
 import openai
 from flask import Flask, request, jsonify, send_from_directory
 import os
-from AI.preprocessing import read_pdf_text_and_tables
+from pymongo import MongoClient
+from bson import ObjectId
+from MedicalReportAnalyzer import PreProcessing, MedicalReportAnalyzer
+from datetime import datetime
+from Mongodb import Mongodb
+
 app = Flask(__name__, static_folder='build')
 
-# Set your OpenAI API key
-openai.api_key = 'your-api-key-here'
-
-def extract_keywords_openai(text):
-    prompt = f"""
-    You are an expert medical professional tasked with extracting important keywords from medical reports.
-    Given the following medical report, identify and list the most significant keywords.
-    Focus on medical terms, diagnoses, treatments, symptoms, and medications.
-    Provide the keywords as a Python list of strings.
-
-    Medical Report:
-    {text}
-
-    Keywords:
-    """
-
-    try:
-        response = openai.ChatCompletion.create(
-            model="gpt-3.5-turbo",
-            messages=[
-                {"role": "system", "content": "You are a helpful assistant that extracts keywords from medical reports."},
-                {"role": "user", "content": prompt}
-            ],
-            max_tokens=150,
-            n=1,
-            stop=None,
-            temperature=0.5,
-        )
-
-        keywords_str = response.choices[0].message['content'].strip()
-        # Convert the string representation of a list to an actual list
-        keywords = eval(keywords_str)
-        return keywords
-    except Exception as e:
-        print(f"Error in OpenAI API call: {e}")
-        return []
+# Initialize MongoDB and MedicalReportAnalyzer
+mongo_db = Mongodb()
+analyzer = MedicalReportAnalyzer('your-openai-api-key-here')
+PreProcessing=PreProcessing()
 
 @app.route('/api/analyze', methods=['POST'])
 def analyze_report():
@@ -49,14 +22,26 @@ def analyze_report():
     if file.filename == '':
         return jsonify({'error': 'No selected file'}), 400
     if file:
+        table, text = PreProcessing.read_pdf_text_and_tables_from_file(file)
+        content=text
         content = file.read().decode('utf-8')
-
-        tables, text=read_pdf_text_and_tables(content)
-        keywords = extract_keywords_openai(text)
+        keywords = analyzer.extract_keywords(content)
+        analysis = analyzer.analyze_report(content)
+        report_id = mongo_db.store_report(content, keywords, analysis)
         return jsonify({
             'text': content,
-            'keywords': keywords
+            'keywords': keywords,
+            'analysis': analysis,
+            'report_id': report_id
         })
+
+@app.route('/api/report/<report_id>', methods=['GET'])
+def get_report(report_id):
+    report = mongo_db.get_report(report_id)
+    if report:
+        return jsonify(report)
+    else:
+        return jsonify({'error': 'Report not found'}), 404
 
 # Serve React App
 @app.route('/', defaults={'path': ''})
@@ -69,3 +54,8 @@ def serve(path):
 
 if __name__ == '__main__':
     app.run(use_reloader=True, port=5000, threaded=True)
+
+# Ensure the MongoDB connection is closed when the application exits
+@app.teardown_appcontext
+def teardown_db(exception):
+    mongo_db.close_connection()
