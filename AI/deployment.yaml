@@ -1,0 +1,32 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: flask-keywords-app
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: flask-keywords
+  template:
+    metadata:
+      labels:
+        app: flask-keywords
+    spec:
+      containers:
+      - name: flask-keywords-container
+        image: your-dockerhub-username/flask-keywords-app:latest # Replace with your image
+        ports:
+        - containerPort: 5000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: flask-keywords-service
+spec:
+  selector:
+    app: flask-keywords
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 5000
+  type: LoadBalancer

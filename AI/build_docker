@@ -1,0 +1,20 @@
+# Base image: Ollama Docker image
+FROM ollama/base:latest  # Replace with the correct Ollama image
+
+# Set the working directory
+WORKDIR /app
+
+# Copy requirements.txt to the container
+COPY requirements.txt .
+
+# Install dependencies
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy the Flask app to the container
+COPY AI .
+
+# Expose port 5000 for Flask app
+EXPOSE 5000
+
+# Command to run the Flask app
+CMD ["python", "flaskapp.py"]
