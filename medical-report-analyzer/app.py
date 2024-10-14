@@ -12,7 +12,9 @@ app = Flask(__name__, static_folder='build')
 # Initialize MongoDB and MedicalReportAnalyzer
 mongo_db = Mongodb()
 analyzer = MedicalReportAnalyzer('your-openai-api-key-here')
-PreProcessing=PreProcessing()
+PreProcessing=PreProcessing()  #TODO 
+
+
 
 @app.route('/api/analyze', methods=['POST'])
 def analyze_report():
