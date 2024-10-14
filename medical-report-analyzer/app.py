@@ -1,7 +1,7 @@
 import openai
 from flask import Flask, request, jsonify, send_from_directory
 import os
-
+from AI.preprocessing import read_pdf_text_and_tables
 app = Flask(__name__, static_folder='build')
 
 # Set your OpenAI API key
@@ -50,7 +50,9 @@ def analyze_report():
         return jsonify({'error': 'No selected file'}), 400
     if file:
         content = file.read().decode('utf-8')
-        keywords = extract_keywords_openai(content)
+
+        tables, text=read_pdf_text_and_tables(content)
+        keywords = extract_keywords_openai(text)
         return jsonify({
             'text': content,
             'keywords': keywords
